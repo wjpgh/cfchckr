@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="Won Pyun, Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <title>ATM CSV File Checker</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css" integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+
+    <style>
+        .container {
+            max-width: 960px;
+        }
+        
+        .py-2 i {
+            font-size: 1.5em;
+        }
+        
+        .py-2 {
+            font-size: 1.5em;
+        }
+        
+        title {}
+        
+        .alert-warning ul,
+        .alert-secondary ul {
+            margin-bottom: 0;
+        }
+        
+        th {
+            font-weight: 600;
+        }
+        
+        .form-control {
+            height: calc(3rem);
+            margin-top: 5px;
+        }
+        
+        .rownum {
+            font-weight: 600;
+            border-right: 1px solid #ccc;
+            text-align: center;
+        }
+        
+        .alert-danger {
+            font-weight: 600;
+        }
+        
+        td.bg-danger {
+            font-weight: 600;
+            color: #fff;
+        }
+        /* spinning wheel CSS from 
+
+			https://stackoverflow.com/questions/1964839/how-can-i-create-a-please-wait-loading-animation-using-jquery
+
+			Start by setting display:none to make this hidden.
+			Then we position it in relation to the viewport window
+			with position:fixed. Width, height, top and left speak
+			for themselves. Background we set to 80% white with
+			our animation centered, and no-repeating */
+        
+        #spinningwheel {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: rgba( 255, 255, 255, .8) url('https://www.tdautofinance.com/res/images/loading.gif') 50% 50% no-repeat;
+        }
+        /*
+ * Custom translucent site header
+ */
+        
+        .site-header {
+            background-color: rgba(0, 0, 0, .85);
+            color: #fff;
+        }
+        
+        .site-header a {
+            color: #fff;
+        }
+        
+        .site-header a:hover {
+            color: #fff;
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            .form-control {
+                height: 3em;
+                margin-top: 1em;
+                margin-bottom: 1em;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .bd-placeholder-img-lg {
+                font-size: 3.5rem;
+            }
+        }
+    </style>
+    <!-- Custom styles for this template -->
+
+</head>
+
+<body>
+    <header class="site-header py-1">
+        <div class="container d-flex flex-column flex-md-row justify-content-between">
+
+            <a class="py-2" href="#">
+                <i class="fas fa-file-csv"></i> <span id="pagetitle"> ATM CSV Checker</span>
+                <title>ATM CSV Checker</title>
+
+                </svg>
+            </a>
+            <input type="file" id="files" class="form-control form-control-dark col-lg-8" name="files[]" multiple />
+        </div>
+    </header>
+
+    <main role="main" class="col-md-12 ml-sm-auto px-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">File Information</h2>
+
+      </div>
+
+	<div class="col-lg-12"><div class="alert alert-secondary"  id="list"></div></div>
+	<div class="col-lg-12" id="stats"></div>
+
+      <h2>ATM Table</h2>
+      <div class="table-responsive">
+        <table class="table table-striped table-sm">
+ 	<tbody id="contents"></tbody>
+          <thead id="tableheader">
+          </thead>
+        </table>
+      </div>
+    </main>
+
+    <footer class="container py-5">
+        <div class="row">
+			<!-- leaving the footer on here just in case -->
+        </div>
+    </footer>
+
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.9.0/feather.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.8.9/jquery.csv.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+          if(isAPIAvailable()) {
+
+            $('#files').bind('change', handleFileSelect);
+
+          }
+
+        });
+
+	function printRow(onedarray) {
+
+		//output row in a span tag
+
+		var outputhtml = '';
+
+		for(var row in onedarray) {
+                	outputhtml += '<span>' + "<a href='#" + onedarray[row] + "'>" + onedarray[row] + '</a></span>';
+
+			if (row < onedarray.length-1) // add comma if it's not end of the list
+			{
+				outputhtml += ', '
+			}
+
+              	}
+
+		return outputhtml;
+
+	}
+
+        function isAPIAvailable() {
+          // Check for the various File API support.
+          if (window.File && window.FileReader && window.FileList && window.Blob) {
+            // Great success! All the File APIs are supported.
+            return true;
+          } else {
+            // source: File API availability - http://caniuse.com/#feat=fileapi
+            // source: <output> availability - http://html5doctor.com/the-output-element/
+            document.writeln('The HTML5 APIs used in this form are only available in the following browsers:<br />');
+            // 6.0 File API & 13.0 <output>
+            document.writeln(' - Google Chrome: 13.0 or later<br />');
+            // 3.6 File API & 6.0 <output>
+            document.writeln(' - Mozilla Firefox: 6.0 or later<br />');
+            // 10.0 File API & 10.0 <output>
+            document.writeln(' - Internet Explorer: Not supported (partial support expected in 10.0)<br />');
+            // ? File API & 5.1 <output>
+            document.writeln(' - Safari: Not supported<br />');
+            // ? File API & 9.2 <output>
+            document.writeln(' - Opera: Not supported');
+            return false;
+          }
+        }
+
+        function handleFileSelect(evt) {
+			//show the spinning wheel
+		$('#spinningwheel').show();
+
+          var files = evt.target.files; // FileList object
+          var file = files[0];
+
+          // read the file metadata
+          var output = '';
+
+              output += '<ul> <li> File Size: ' + file.size + ' bytes</li>\n';
+              output += ' <li> Last Modified: ' + (file.lastModifiedDate ? file.lastModifiedDate.toLocaleDateString() : 'n/a') + '</li></ulcon>\n';
+
+          // read the file contents
+          printTable(file);
+
+          // post the results
+          $('#list').html(output);
+
+        }
+
+        function printTable(file) {
+
+		var statushtml = "<div class='alert alert-success' role='alert'>The file contains no cell with a double quotation mark and/or over 30 characters.</div>\r\n";
+		var quotecount = 0; //counting cells with quotation mark
+		var bignumcount = 0; // counting cells with too many characters, set at 30
+		var twoerrcount = 0 ; // counting cells with both errors
+
+		var quotearray = [];
+		var bignumarray = [];
+		var twoerrarray= [];
+
+        var reader = new FileReader();
+		reader.readAsText(file);
+		reader.onload = function(event){
+		var csv = event.target.result;
+		var data = $.csv.toArrays(csv, {delimiter:"¿"}); // set inverted question mark as delimiter to let quotation marks passby
+		var html = '';
+		var tableheaderhtml='';
+
+		var row=0; // variable to hold row count in for loop
+		var col=0; //variable to hold col count in for loop
+
+		//Check if the file has a header row and print the header row if present
+		if (data[0][0]=="TRANSIT")
+			{ 
+
+			tableheaderhtml += '<th>Row #</td>\r\n'; //create first item in the headrow
+
+			for(var i in data[0]) {
+
+				tableheaderhtml += '<th>' + data[0][i] + '</th>\r\n';	
+
+			}
+			row=1;
+		}
+
+		var badrowstate = false;
+
+        for ( row; row < data.length; row++) {
+
+			html += "<tr id='row" + row + "'>\r\n";
+
+		//creating the first column with the row number in the header row 
+			html += "<td class='rownum' >\r\n";
+			html += "<a name='" + row + "'>" + row + '</a>';
+			html += "</td>\r\n";
+		//finish creating the first column in the header row
+			
+			for(var item in data[row]) {
+
+				if (data[row][item].length > 30 && data[row][item].indexOf('\"') > -1) {
+					html += "<td class='bg-danger'>" + data[row][item] + '</td>\r\n';
+				twoerrcount++;
+				twoerrarray.push(row);
+				badrowstate=true;
+				}
+
+		else if (data[row][item].length > 30) {
+				html += "<td class='bg-danger'>" + data[row][item] + '</td>\r\n';
+				bignumcount++;
+				bignumarray.push(row);
+				badrowstate=true;
+
+              			} 
+
+		else if (data[row][item].indexOf('\"') > -1) {
+
+				html += "<td class='bg-danger'>" + data[row][item] + '</td>\r\n';	
+				quotecount++;	
+				quotearray.push(row);	
+				badrowstate=true;
+			}
+
+		else {
+
+				html += '<td>' + data[row][item] + '</td>\r\n';
+
+			}
+
+		}
+
+		if (badrowstate==true)  //check if the row contains an error
+
+		{ 
+
+			//$("#row754").css("cssText","height: 200px !important;");
+
+			//$("tr#row754").css("background-color", "#888");	
+
+			$(".bg-danger").css("cssText","height: 200px !important;");
+
+			 html += "</tr><tr><td class='bg-danger col-lg-12' style='height:2px; padding:0;' colspan=18></td></tr><tr style='height: 6px !important; background: none !important;'></tr>\r\n"; // highlight row by inserting a fake underline using tr. second tr is needed to keep the even/odd sequence 
+
+		}
+
+		else
+
+		{
+			html += "</tr>\r\n";
+		}
+
+		badrowstate=false;
+
+            }
+		// end creating table variable
+
+		//insert error information on top
+
+		if (quotecount > 0 || bignumcount > 0 || twoerrcount > 0) {
+
+					statushtml="<div class='alert alert-danger' role='alert'>The file contains error(s)</div>\r\n";
+
+			if (quotecount > 0) {
+				statushtml += "<div class='alert alert-warning' role='alert'>Following rows have cells with double quotation mark:"; 
+
+				//output rows with such errors
+
+				statushtml += '<div><ul><li>';
+				statushtml += printRow(quotearray);
+				statushtml += '</li></ul></div>\r\n';
+				statushtml += '</div>\r\n';
+
+			}
+
+			if (bignumcount>0) {
+				statushtml += 
+"<div class='alert alert-warning' role='alert'>Following rows have cells with too many characters:";
+
+				statushtml += '<div><ul><li>';
+					statushtml += printRow(bignumarray);
+
+				statushtml += '</li></ul></div>\r\n';
+				statushtml += '</div>\r\n';
+
+			}
+
+			if (twoerrcount > 0) {
+				statushtml += "<div class='alert alert-warning' role='alert'>Following rows have cells with both double quotation mark and too many characters:";	
+
+				statushtml += '<div><ul><li>';
+				statushtml += printRow(twoerrarray);
+				statushtml += '</li></ul></div>\r\n';
+				statushtml += '</div>\r\n';
+
+			}
+
+		}
+
+		$('#stats').html(statushtml); // show statistics
+   		$('#tableheader').html(tableheaderhtml); // show tableheader
+		$('#contents').html(html); // fill table with content
+		statushtml = '';
+		tableheaderhtml = '';
+		html='';
+		$('#spinningwheel').hide();
+          };
+          reader.onerror = function(){ alert('Unable to read ' + file.fileName); };
+        }
+    </script>
+	
+<div  id="spinningwheel"><!-- Container of the spinning wheel while the CSV file content is being loaded --></div>
+
+</body>
+
+</html>
